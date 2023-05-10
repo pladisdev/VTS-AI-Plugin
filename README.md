@@ -7,6 +7,7 @@ This is a simple python example to remotely control a vtuber model using Vtube S
 * Set random head movements
 * Set random eye movements
 * Set and toggle expressions
+* Video demonstration: https://www.youtube.com/watch?v=zEsLiZGpNhA
 
 ### Why is this useful? 
 * For AI vtubers, vtuber models need to controlled via code. This is an example to control a model via code, allowing you to toggle expressions based on AI inputs, like mood or prompts. 
