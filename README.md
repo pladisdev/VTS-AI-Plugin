@@ -17,6 +17,8 @@ This is a simple python example to remotely control a vtuber model using Vtube S
 * Follow the instructions here in creating a plugin for VTS: https://github.com/DenchiSoft/VTubeStudio/wiki/Plugins
 More info can be found here: https://github.com/DenchiSoft/VTubeStudio/
 
+* Currently, the API injects parameters values for FaceAngleX, FaceAngleY, FaceAngleZ, EyeLeftX, and EyeLeftY for ParamAngleX, ParamAngleY, ParamAngleZ, ParamEyeBallX, and ParamEyeBallY respectively. These are default and should already be set, but make sure in the model settings that they are. For some reason using these values cause the Vtube Studio watermark to appear, even when paid. I believe the solution is switching to custom parameters (I think Vtube Studio expects these values to come from a phone app, which also needs to be paid for).
+* You can create different expressions which can then be toggled by the script.
 * You only need 'pip install aioconsole' to run main.py
 * Add your plugin information in the script. Your plugin name, developer name, and token
 * Then just run it your favorite way, ie python main.py
