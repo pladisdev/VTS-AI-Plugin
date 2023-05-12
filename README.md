@@ -18,7 +18,7 @@ This is a simple python example to remotely control a vtuber model using Vtube S
 * Have Vtube Studio open, and in VTS settings, enable Start  API (allow plugins)
 * Then just run it your favorite way, ie ```python main.py```
 * When a pop-up appears, select Allow
-* Currently, the API injects parameters values for ```FaceAngleX, FaceAngleY, FaceAngleZ, EyeLeftX, and EyeLeftY``` for ```ParamAngleX, ParamAngleY, ParamAngleZ, ParamEyeBallX, and ParamEyeBallY``` respectively. These are default and should already be set, but make sure in the model settings that they are. For some reason using these values cause the Vtube Studio watermark to appear, even when paid. I believe the solution is switching to custom parameters (I think Vtube Studio expects these values to come from a phone app, which also needs to be paid for).
+* Currently, the API injects parameters values for ```FaceAngleX, FaceAngleY, FaceAngleZ, EyeLeftX, and EyeLeftY``` for the parameters for your vtubers models that control face and eye movements. These are default and should already be set, but make sure in the model settings that they are. For some reason using these values cause the Vtube Studio watermark to appear, even when paid. I believe the solution is switching to custom parameters (I think Vtube Studio expects these values to come from a phone app, which also needs to be paid for).
 * You should adjust these values so they appear natural for random movements, for your vtuber model.
 * You can create different expressions which can then be toggled by the script.
 
