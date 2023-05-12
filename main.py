@@ -6,6 +6,7 @@ import time
 from aioconsole import ainput
 
 from vts import VTS_API
+from gui import GUI
 
 #Make sure to create a Vtube Studio plugin first
 URL = "ws://localhost:8001/" #Verify this is the right port
@@ -65,7 +66,7 @@ async def main():
 
     while not vtube_studio.authenticate_flag:
         await asyncio.sleep(.1)
-        
+
     expressions = None
     timeout = time.time()+10
     while expressions is None and time.time() < timeout:
@@ -79,42 +80,66 @@ async def main():
     
     print(f"Expressions in model: {expressions}")
 
+    gui = GUI(expressions)
+
     #Sets eye and head movement to 0
     await queue.put({"state" : "head movement", "val" : {"x" : head_x, "y" : head_y,  "z" : head_z}})
     await queue.put({"state" : "eye movement", "val" : {"x" : eye_x, "y" : eye_y}})
 
-    #Creates task for user input, is async and non-blocking
-    user_queue = asyncio.Queue()
-    user_input_task = asyncio.create_task(get_user_input(user_queue))
+    expression = ""
 
     while True:
         
         #Wait to not abuse CPU, and should be greater than VTS so the queue doesn't pile up
         await asyncio.sleep(.1)
 
+        if gui.exit:
+            break
+        elif gui.value_change:
+
+            if gui.expression != expression:
+                expression = gui.expression
+                await queue.put({"state" : "toggle expression", "expression" : expression})
+
+            head_state = gui.head_state
+            head_target_speed_min = gui.head_target_speed_min*5
+            head_target_speed_max = gui.head_target_speed_max*5
+
+            if head_target_speed_min > head_target_speed_max:
+                head_target_speed_min = head_target_speed_max
+            elif head_target_speed_max < head_target_speed_min:
+                head_target_speed_max = head_target_speed_min
+
+            head_x_min = (1-gui.head_x_min)*-30
+            head_x_max = gui.head_x_max*30
+            head_y_min = (1-gui.head_y_min)*-30
+            head_y_max = gui.head_y_max*30
+            head_z_min = (1-gui.head_z_min)*-90
+            head_z_max = gui.head_z_max*90
+
+            eyes_state = gui.eyes_state
+            eyes_target_speed_min = gui.eyes_target_speed_min*5
+            eyes_target_speed_max = gui.eyes_target_speed_max*5
+
+            if eyes_target_speed_min > eyes_target_speed_max:
+                eyes_target_speed_min = eyes_target_speed_max
+            elif eyes_target_speed_max < eyes_target_speed_min:
+                eyes_target_speed_max = eyes_target_speed_min
+
+            eyes_x_min = (1-gui.eyes_x_min)*-1
+            eyes_x_max = gui.eyes_x_max
+            eyes_y_min = (1-gui.eyes_y_min)*-1
+            eyes_y_max = gui.eyes_y_max
+
+            gui.value_change = False
+
         if queue.qsize() > 20:
-            print("warning: queue is growing to much")
+            gui.update_error("warning: queue is growing to much")
 
         current_time = time.time()
 
-        #For user input
-        if not user_queue.empty():
-            input_from_user = await user_queue.get()
-            if input_from_user == "stop":
-                break
-            elif input_from_user == "hs":
-                head_movement = "still"
-            elif input_from_user == "hr":
-                head_movement = "random"
-            elif input_from_user == "es":
-                eye_movement = "stare"
-            elif input_from_user == "er":
-                eye_movement = "random"
-            else: #For settings expressions
-                await queue.put({"state" : "toggle expression", "expression" : input_from_user})
-
         #Only sets once
-        if head_movement == "still":
+        if head_state == "Still":
             if head_x + head_y + head_z != 0:
                 head_x = 0
                 head_y = 0
@@ -122,12 +147,12 @@ async def main():
                 await queue.put({"state" : "head movement", "val" : {"x" : head_x, "y" : head_y,  "z" : head_z}})
 
         #Moves the head to a random position over time, at random intervals 
-        elif head_movement == "random":
+        elif head_state == "Random":
             if current_time > head_move:
-                head_move = current_time + random.uniform(1, 5)
-                target_head_x = random.uniform(-30, 30)
-                target_head_y = random.uniform(-30, 30)
-                target_head_z = random.uniform(-90, 90)
+                head_move = current_time + random.uniform(head_target_speed_min, head_target_speed_max)
+                target_head_x = random.uniform(head_x_min, head_x_max)
+                target_head_y = random.uniform(head_y_min, head_y_max)
+                target_head_z = random.uniform(head_z_min, head_z_max)
 
             head_x = lerp(head_x, target_head_x, 0.1)
             head_y = lerp(head_y, target_head_y, 0.1)
@@ -135,26 +160,26 @@ async def main():
             await queue.put({"state" : "head movement", "val" : {"x" : head_x, "y" : head_y,  "z" : head_z}})
 
         #Only sets once
-        if eye_movement == "stare":
+        if eyes_state == "Still":
             if eye_x + eye_y != 0:
                 eye_x = 0
                 eye_y = 0
                 await queue.put({"state" : "eye movement", "val" : {"x" : eye_x, "y" : eye_y}})
 
         #Moves the eyes to a random position over time, at random intervals 
-        elif eye_movement == "random":
+        elif eyes_state == "Random":
             if current_time > eye_move:
-                eye_move = current_time + random.uniform(1, 6)
-                target_eye_x = random.uniform(-1.0, 1.0)
-                target_eye_y = random.uniform(-1.0, 1.0)
+                eye_move = current_time + random.uniform(eyes_target_speed_min, eyes_target_speed_max)
+                target_eye_x = random.uniform(eyes_x_min, eyes_x_max)
+                target_eye_y = random.uniform(eyes_y_min, eyes_y_max)
 
             eye_x = lerp(eye_x, target_eye_x, .5)
             eye_y = lerp(eye_y, target_eye_y, .5)
             await queue.put({"state" : "eye movement", "val" : {"x" : eye_x, "y" : eye_y}})
 
     #For a clean exit (could be cleaner)
+    await gui.end()
     await vtube_studio.end()
-    user_input_task.cancel()
 
 if(__name__ == '__main__'):
     asyncio.run(main())
