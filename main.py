@@ -31,9 +31,6 @@ async def main():
 
     ########################################### head variables ###########################################
 
-    #sets the movement of the head to be still
-    head_movement = "still"
-
     #When the random head movements should occur, is set to a random value each time
     head_move = 0
 
@@ -47,9 +44,6 @@ async def main():
 
     ########################################### Eye variables ###########################################
 
-    #sets the eye movement to stare forwards
-    eye_movement = "stare"
-    
     #When the random eye movements should occur, is set to a random value each time
     eye_move = 0
 
@@ -93,6 +87,7 @@ async def main():
         #Wait to not abuse CPU, and should be greater than VTS so the queue doesn't pile up
         await asyncio.sleep(.1)
 
+        #Gets updated vars from GUI when a value changes
         if gui.exit:
             break
         elif gui.value_change:

@@ -34,7 +34,7 @@ class GUI:
         self.window.title("GUI Example")
 
         self.sliders = []
-        slider_labels = ["Next Pos (0->5:0->5)", "     X (-30->0:0->30)", "     Y (-30->0:0->30)", "     Z (-30->0:0->30)", "Next Pos (0->5:0->5)", "     X (-30->0:0->30)", "     Y (-30->0:0->30)"]
+        slider_labels = ["Next Pos (0->5:0->5)", "     X (-30->0:0->30)", "     Y (-30->0:0->30)", "     Z (-90->0:0->90)", "Next Pos (0->5:0->5)", "     X (-1->0:0->1)", "     Y (-1->0:0->1)"]
         for i in range(7):
 
             if (i == 0):
