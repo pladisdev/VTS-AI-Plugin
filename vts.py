@@ -1,7 +1,10 @@
 import json
-import websockets
 import time
 import asyncio
+import base64
+import configparser
+
+import websockets
 
 #For storing expression for your model, can become more complex over times
 class Expression:
@@ -14,16 +17,15 @@ class Expression:
         return self.val
 
 class VTS_API:
-    def __init__(self, url, name, developer, token, queue):
+    def __init__(self, url, queue):
         self.url =  url
-        self.name = name
-        self.developer = developer
-        self.token = token
         self.queue = queue
 
         self.ws = None
 
         self.expressions = None
+
+        self.authenticate_flag = False
 
         #task runs async to main
         self.task = asyncio.create_task(self.vts(self.queue))
@@ -41,6 +43,67 @@ class VTS_API:
             names = [expression.name for expression in self.expressions]
         return names
 
+    #Gets plugin information for authetifcation from config file
+    async def load_plugin_information(self):
+
+        DEFUALT_NAME = "VTS-AI"
+        DEFAULT_DEVELOPER = "Pladis"
+
+        PLUGIN_SETTINGS = "Plugin Settings"
+        PLUGIN_NAME = "Name"
+        PLUGIN_DEVELOPER = "Developer"
+        PLUGIN_TOKEN = "Token"
+
+        config = configparser.ConfigParser()
+        
+        try:
+            files_read = config.read("config.ini")
+
+            if not files_read:
+                with open("config.ini", "w") as config_file:
+                    
+                    config.add_section(PLUGIN_SETTINGS)
+                    config.set(PLUGIN_SETTINGS, PLUGIN_NAME, DEFUALT_NAME)
+                    config.set(PLUGIN_SETTINGS, PLUGIN_DEVELOPER, DEFAULT_DEVELOPER)
+                    config.set(PLUGIN_SETTINGS, PLUGIN_TOKEN, "")
+                    config.write(config_file)
+
+                return self.load_plugin_information()
+        except Exception as e:
+            raise e
+
+        if not config.has_section(PLUGIN_SETTINGS):
+            config.add_section(PLUGIN_SETTINGS)
+
+        if config.has_option(PLUGIN_SETTINGS, PLUGIN_NAME):
+            name = config.get(PLUGIN_SETTINGS, PLUGIN_NAME)
+        else:
+            config.set(PLUGIN_SETTINGS, PLUGIN_NAME, DEFUALT_NAME)
+            name = DEFUALT_NAME
+
+        if config.has_option(PLUGIN_SETTINGS, PLUGIN_DEVELOPER):
+            developer = config.get(PLUGIN_SETTINGS, PLUGIN_DEVELOPER)
+        else:
+            config.set(PLUGIN_SETTINGS, PLUGIN_DEVELOPER, DEFAULT_DEVELOPER)
+            developer = DEFAULT_DEVELOPER
+
+        if config.has_option(PLUGIN_SETTINGS, PLUGIN_TOKEN):
+            token = config.get(PLUGIN_SETTINGS, PLUGIN_TOKEN)
+        else:
+            config.set(PLUGIN_SETTINGS, PLUGIN_TOKEN, "None")
+            token = ""
+
+        if token == "" or token.lower() == "nan" or token.lower() == "none":
+            token = await self.token_request(name, developer)
+            config.set(PLUGIN_SETTINGS, PLUGIN_TOKEN, token)
+            with open("config.ini", "w") as config_file:
+                config.write(config_file)
+
+        if token is None:
+            raise "Could not get token"
+
+        return name, developer, token
+
     #Main function to send message to vtube studio
     #TODO better error handling
     async def send_message(self, message_data, error=False):
@@ -55,18 +118,57 @@ class VTS_API:
 
         return json.loads(response)
     
+    async def token_request(self, name, developer):
+        
+        try:
+            with open("vts_ai_logo.png", "rb") as image_file:
+                image_data = image_file.read()
+
+            # Encode the image data to base64
+            image_base64 = base64.b64encode(image_data).decode("utf-8")
+
+            data = {
+            "pluginName": name,
+            "pluginDeveloper": developer,
+            "pluginIcon": image_base64
+            }
+
+        except Exception as e:
+            print(e)
+            data = {
+            "pluginName": name,
+            "pluginDeveloper": developer
+            }
+
+        token_request = {
+        "apiName": "VTubeStudioPublicAPI",
+        "apiVersion": "1.0",
+        "requestID": "TokenRequest",
+        "messageType": "AuthenticationTokenRequest",
+        "data": data
+        }
+
+        response = await self.send_message(token_request)
+
+        if "errorID" in response["data"]:
+            print("Error getting token, did you deny access in Vtube Studio? Is it open?")
+        elif "authenticationToken" in response["data"]:
+            return response["data"]["authenticationToken"]
+
+        return None
+        
     #Required at least once per session
-    async def authenticate(self):
+    async def authenticate(self, name, developer, token):
 
         auth_request = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
-            "requestID": "SomeID",
+            "requestID": "Authenticate",
             "messageType": "AuthenticationRequest",
             "data": {
-                "pluginName": self.name,
-                "pluginDeveloper": self.developer,
-                "authenticationToken": self.token
+                "pluginName": name,
+                "pluginDeveloper": developer,
+                "authenticationToken": token
             }
         }
 
@@ -78,7 +180,7 @@ class VTS_API:
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
-            "requestID": "MyIDWithLessThan64Characters",
+            "requestID": "PingPong",
             "messageType": "APIStateRequest"
         }   
 
@@ -88,7 +190,7 @@ class VTS_API:
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
-            "requestID": "SomeID",
+            "requestID": "GetExpressions",
             "messageType": "ExpressionStateRequest",
             "data": {
                 "details": True,
@@ -109,7 +211,7 @@ class VTS_API:
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
-            "requestID": "SomeID",
+            "requestID": "SetExpression",
             "messageType": "ExpressionActivationRequest",
             "data": {
                 "expressionFile": expression + ".exp3.json",
@@ -130,7 +232,7 @@ class VTS_API:
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
-            "requestID": "SomeID",
+            "requestID": "SetParameters",
             "messageType": "InjectParameterDataRequest",
             "data": {
                 "mode": "set",
@@ -163,8 +265,12 @@ class VTS_API:
 
         async with websockets.connect(self.url) as self.ws:
 
+            name, developer, token = await self.load_plugin_information()
+
             #Authentification is required to connect
-            await self.authenticate()
+            await self.authenticate(name, developer, token)
+
+            self.authenticate_flag = True
 
             #Gets all expressions in model
             self.expressions = await self.get_expressions()

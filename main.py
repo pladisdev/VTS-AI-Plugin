@@ -9,9 +9,6 @@ from vts import VTS_API
 
 #Make sure to create a Vtube Studio plugin first
 URL = "ws://localhost:8001/" #Verify this is the right port
-PLUGIN_NAME = "Enter your plugin name here" #Name should match custom plugin in vtube studio
-DEVELOPER_NAME = "Enter your developer name here" #Should match as well
-TOKEN = "enter your plugin token here" #"insert vtube studio token here"
 
 #for calculating in between points
 def lerp(a, b, t):
@@ -29,7 +26,7 @@ async def main():
     ########################################### Vtube Studio settings ###########################################
 
     queue = asyncio.Queue()
-    vtube_studio = VTS_API(URL, PLUGIN_NAME, DEVELOPER_NAME, TOKEN, queue)
+    vtube_studio = VTS_API(URL, queue)
 
     ########################################### head variables ###########################################
 
@@ -65,6 +62,10 @@ async def main():
 
     #Wait for connection to vtube studio and get expressions
     #TODO probably should have a flag to wait till vtube is connected, and expressions are set
+
+    while not vtube_studio.authenticate_flag:
+        await asyncio.sleep(.1)
+        
     expressions = None
     timeout = time.time()+10
     while expressions is None and time.time() < timeout:
