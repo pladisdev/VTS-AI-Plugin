@@ -1,5 +1,4 @@
 import json
-import time
 import asyncio
 import base64
 import configparser
@@ -17,29 +16,20 @@ class Expression:
         return self.val
 
 class VTS_API:
-    def __init__(self, url, queue):
+    
+    def __init__(self, url):
         self.url =  url
-        self.queue = queue
 
         self.ws = None
 
-        self.expressions = None
+        self.expressions = []
 
-        self.authenticate_flag = False
-
-        #task runs async to main
-        self.task = asyncio.create_task(self.vts(self.queue))
-
-    #to cleanly end task and queue
-    async def end(self):
-        await self.queue.put(None)   
-        await asyncio.sleep(.1)
-        self.task.cancel()
-        await asyncio.gather(*self.task, return_exceptions=True)
+        with open("custom_params.json") as params_file:
+            self.custom_params = json.load(params_file)["custom_params"]
 
     async def return_expressions(self):
-        names = None
-        if self.expressions is not None:
+        names = []
+        if self.expressions != []:
             names = [expression.name for expression in self.expressions]
         return names
 
@@ -174,15 +164,18 @@ class VTS_API:
 
         await self.send_message(auth_request)
 
-    #Function called when there is no activity happening with Vtube Studio
-    #Vtube studio will disconnect otherwise
-    async def pingpong(self):
-        message_data = {
+    async def set_custom_parameters(self):
+        for data in self.custom_params:
+
+            message_data = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
-            "requestID": "PingPong",
-            "messageType": "APIStateRequest"
-        }   
+            "requestID": "ParameterCreation",
+            "messageType": "ParameterCreationRequest",
+            "data": data
+            }
+
+            await self.send_message(message_data)
 
         await self.send_message(message_data)
 
@@ -206,7 +199,7 @@ class VTS_API:
 
         return expressions
 
-    async def set_expression(self, expression, val):
+    async def set_expression_vts(self, expression, val):
 
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
@@ -242,86 +235,50 @@ class VTS_API:
 
         return await self.send_message(message_data)
         
-    async def eye_movement(self, x, y):
+    async def ai_movement(self, head, eye, eye_lids):
         params =  [
-                    {"id": "EyeLeftX", "value": x},
-                    {"id": "EyeLeftY", "value": y}
-                ]
-        
-        await self.set_parameters(params)
-
-    async def head_movement(self, x, y, z):
-        params =  [
-                    {"id": "FaceAngleX", "value": x},
-                    {"id": "FaceAngleY", "value": y},
-                    {"id": "FaceAngleZ", "value": z}       
+                    {"id": "AIFaceAngleX", "value": head[0]},
+                    {"id": "AIFaceAngleY", "value": head[1]},
+                    {"id": "AIFaceAngleZ", "value": head[2]},
+                    {"id": "AIEyeLeftX", "value": eye[0]},
+                    {"id": "AIEyeLeftY", "value": eye[1]},
+                    {"id": "AIEyeOpenLeft", "value": eye_lids[0]},
+                    {"id": "AIEyeOpenRight", "value": eye_lids[1]}        
                 ]
         
         await self.set_parameters(params)
     
-    async def vts(self, queue):
+    async def __aenter__(self):
 
-        ping = time.time()
+        self.ws = await websockets.connect(self.url)
+        name, developer, token = await self.load_plugin_information()
+        await self.authenticate(name, developer, token)
+        self.expressions = await self.get_expressions()
 
-        async with websockets.connect(self.url) as self.ws:
+        for expression in self.expressions:
+            if expression.val:
+                await self.set_expression(expression.name, expression.toggle())
 
-            name, developer, token = await self.load_plugin_information()
+        await self.set_custom_parameters()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.ws:
+            await self.ws.close()
 
-            #Authentification is required to connect
-            await self.authenticate(name, developer, token)
+    async def toggle_expression(self, name):
 
-            self.authenticate_flag = True
+        expression = [expression for expression in self.expressions if expression.name == name]
 
-            #Gets all expressions in model
-            self.expressions = await self.get_expressions()
+        if expression != []:
+            await self.set_expression_vts(expression[0].name, expression[0].toggle())
 
-            #Sets all expressions to false
-            for expression in self.expressions:
-                if expression.val == True:
-                    await self.set_expression(expression.name, expression.toggle())
+    async def set_expression(self, name, value):
+        expression = [expression for expression in self.expressions if expression.name == name]
 
-            while True:
-                #Faster than main loop to deal with API calls before the queue fills
-                await asyncio.sleep(.001)
+        if expression != []:
+            if value != expression[0].val:
+                await self.set_expression_vts(expression[0].name, expression[0].toggle())
 
-                if not queue.empty():
-                    item = await queue.get()
-
-                    if item is None:
-                        break
-                        
-                    #toggle without knowing the value of the expression
-                    elif item["state"] == "toggle expression" and "expression" in item:
-
-                        expression = [expression for expression in self.expressions if expression.name == item["expression"]]
-
-                        if expression != []:
-                            await self.set_expression(expression[0].name, expression[0].toggle())
-
-                    #toggle expression with value, is ignored if value is already set in expression
-                    elif item["state"] == "set expression" and "expression" in item and "val" in item:
-
-                        expression = [expression for expression in self.expressions if expression.name == item["expression"]]
-
-                        if expression != [] and item["val"] != expression[0].val:
-                            await self.set_expression(expression[0].name, expression[0].toggle())
-
-                    #set eyes values with x and y
-                    elif item["state"] == "eye movement" and "val" in item:
-                        values = item["val"]
-                        if "x" in values and "y" in values:
-                            await self.eye_movement(values["x"], values["y"])
-
-                    #set head values with x, y and z
-                    elif item["state"] == "head movement" and "val" in item:
-                        values = item["val"]
-                        if "x" in values and "y" in values and "z" in values:
-                            await self.head_movement(values["x"], values["y"], values["z"])
-
-                    #reset pingpong
-                    ping = time.time() + 5
-                
-                #prevents disconnect due to inactivity, it disconnects after 20 seconds or so.
-                elif time.time() > ping:
-                    await self.pingpong()
-                    ping = time.time() + 5
+    async def vtuber_movement(self, head, eyes, eye_lids):          
+            await self.set_parameters(head, eyes, eye_lids)

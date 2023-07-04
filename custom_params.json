@@ -1,0 +1,53 @@
+{ 
+    "custom_params" : [
+    {
+    "parameterName": "AIFaceAngleX",
+    "explanation": "Set to ParamAngleX",
+    "min": -30,
+    "max": 30,
+    "defaultValue": 0
+    },
+    {
+    "parameterName": "AIFaceAngleY",
+    "explanation": "Set to ParamAngleY",
+    "min": -30,
+    "max": 30,
+    "defaultValue": 0
+    },
+    {
+    "parameterName": "AIFaceAngleZ",
+    "explanation": "Set to ParamAngleZ",
+    "min": -90,
+    "max": 90,
+    "defaultValue": 0
+    },
+    {
+    "parameterName": "AIEyeLeftX",
+    "explanation": "Set to ParamEyeBallX",
+    "min": -1,
+    "max": 1,
+    "defaultValue": 0
+    },
+    {
+    "parameterName": "AIEyeLeftY",
+    "explanation": "Set to ParamEyeBallY",
+    "min": -1,
+    "max": 1,
+    "defaultValue": 0
+    },
+    {
+    "parameterName": "AIEyeOpenLeft",
+    "explanation": "Set to ParamEyeLOpen",
+    "min": 0,
+    "max": 1,
+    "defaultValue": 1
+    },
+    {
+    "parameterName": "AIEyeOpenRight",
+    "explanation": "Set to ParamEyeROpen",
+    "min": 0,
+    "max": 1,
+    "defaultValue": 1
+    }
+    ]
+}
