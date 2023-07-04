@@ -6,6 +6,7 @@
 This is a simple python example to remotely control a vtuber model using Vtube Studio's API. You can currently:
 * Set random head movements
 * Set random eye movements
+* Blinking
 * Set and toggle expressions
 * Video demonstration: https://www.youtube.com/watch?v=rbA7PNE8CoE
 
