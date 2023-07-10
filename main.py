@@ -59,6 +59,8 @@ class Vtube_Control():
 
         self.blink_state = "Open"
 
+        self.eye_lids_state = "Blink"
+
     #for calculating in between points
     def lerp(self, a, b, t):
         return a + (b - a) * t
@@ -102,14 +104,31 @@ class Vtube_Control():
 
     def eye_lid_movement(self, current_time):
 
-        if current_time > self.blink_time and self.blink_state == "Blink":
-            self.blink_time = current_time + random.uniform(self.blink_range[0], self.blink_range[1])
-            self.eye_lids = [1,1]   
-            self.blink_state = "Open"
-        elif current_time > self.blink_time:
-            self.blink_time = current_time + self.blink_length
-            self.eye_lids = [0,0]
-            self.blink_state = "Blink"
+        if self.eye_lids_state == "Blink":
+            if current_time > self.blink_time and self.blink_state == "Blink":
+                self.blink_time = current_time + random.uniform(self.blink_range[0], self.blink_range[1])
+                self.eye_lids = [1,1]   
+                self.blink_state = "Open"
+            elif current_time > self.blink_time:
+                self.blink_time = current_time + self.blink_length
+                self.eye_lids = [0,0]
+                self.blink_state = "Blink"
+        elif self.eye_lids_state == "Open":
+            self.eye_lids = [1,1]  
+        elif self.eye_lids_state == "Close":
+            self.eye_lids = [0,0]   
+        elif self.eye_lids_state == "Wink":
+            if self.blink_state == "Wink" and current_time > self.blink_time:
+                self.blink_state = "Blink"
+                self.eye_lids_state = "Blink"
+            elif self.blink_state != "Wink":
+                self.blink_time = current_time + self.blink_length*5      
+                if bool(random.getrandbits(1)):
+                    self.eye_lids = [0,1]
+                else:
+                    self.eye_lids = [1,0]
+
+                self.blink_state = "Wink"
 
 async def main():
 
@@ -179,6 +198,8 @@ async def main():
                 movement.eyes_max[0] = gui.eyes_x_max
                 movement.eyes_min[1] = (1-gui.eyes_y_min)*-1
                 movement.eyes_max[1] = gui.eyes_y_max
+
+                movement.eye_lids_state = gui.eye_lids
 
                 gui.value_change = False
 

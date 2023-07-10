@@ -30,6 +30,8 @@ class GUI:
         self.eyes_y_min = 0.5
         self.eyes_y_max = 0.5
 
+        self.eye_lids = "Blink"
+
         self.window = tk.Tk()
         self.window.title("GUI Example")
 
@@ -66,7 +68,25 @@ class GUI:
 
             self.sliders.append(slider_min)
             self.sliders.append(slider)
-            
+
+        self.selector3_label = tk.Label(self.window, text="Eye lids control:")
+        self.selector3_label.pack()
+
+        eye_lids_frame = tk.Frame(self.window)
+        eye_lids_frame.pack()
+
+        blink_button = ttk.Button(eye_lids_frame, text="Blink", command=lambda: self.eye_lids_selection("Blink"))
+        blink_button.pack(side=tk.LEFT)
+
+        blink_button = ttk.Button(eye_lids_frame, text="Open", command=lambda: self.eye_lids_selection("Open"))
+        blink_button.pack(side=tk.LEFT)
+
+        blink_button = ttk.Button(eye_lids_frame, text="Close", command=lambda: self.eye_lids_selection("Close"))
+        blink_button.pack(side=tk.LEFT)
+
+        blink_button = ttk.Button(eye_lids_frame, text="Wink", command=lambda: self.eye_lids_selection("Wink"))
+        blink_button.pack(side=tk.LEFT)
+     
         self.selector3_label = tk.Label(self.window, text="Select Expression:")
         self.selector3_label.pack()
         self.selector3 = ttk.Combobox(self.window, values=self.expressions)
@@ -101,6 +121,10 @@ class GUI:
     def handle_eyes_selection(self, event):
         self.eyes_state = self.selector2.get()
         print("Selected value:", self.eyes_state)
+        self.value_change = True
+
+    def eye_lids_selection(self, action):
+        self.eye_lids = action
         self.value_change = True
 
     def handle_expression_selection(self, event):
