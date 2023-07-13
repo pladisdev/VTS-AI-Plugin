@@ -31,8 +31,10 @@ This is a simple python example to remotely control a vtuber model using Vtube S
 * ```websockets, numpy, scipy, keyboard``` are needed.
 * Run ```collect_data_for_training.py``` to get values from VTS in the form of a txt file and wav file. specify your mic, and make sure your mic supports 48000 sample rate. Data is stored in ram so make sure you don't overflow by running the application for too long.
 * Proper data should be you speaking normally while using a vtuber model in VTS with the plugin connected.
+* Press ```del``` in console to stop recording and save the data.
 * Run ```vts_model_training.py``` to train the model based on data collected from the previous script.
 * Run ```vts_model_inference.py``` to have a Neural Network control the vtuber movements in VTS based on voice input. An example .pth model is included but results are very much in ALPHA.
+* Press ```del``` in console to stop the script.
 
 ## TODO
 * Improve data collection logic for VTS and Audio Input
