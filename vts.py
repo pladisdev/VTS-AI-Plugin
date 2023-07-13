@@ -16,6 +16,26 @@ class Expression:
         return self.val
 
 class VTS_API:
+
+    model_params = [
+            "FacePositionX", 
+            "FacePositionY", 
+            "FacePositionZ", 
+            "FaceAngleX", 
+            "FaceAngleY", 
+            "FaceAngleZ" , 
+            "MouthSmile", 
+            "MouthOpen", 
+            "Brows", 
+            "BrowLeftY", 
+            "BrowRightY", 
+            "EyeOpenLeft", 
+            "EyeOpenRight", 
+            "EyeLeftX", 
+            "EyeLeftY", 
+            "EyeRightX", 
+            "EyeRightY", 
+        ]
     
     def __init__(self, url):
         self.url =  url
@@ -164,6 +184,21 @@ class VTS_API:
 
         await self.send_message(auth_request)
 
+    async def get_parameters(self):
+        message_data = {
+            "apiName": "VTubeStudioPublicAPI",
+            "apiVersion": "1.0",
+            "requestID": "SomeID",
+            "messageType": "InputParameterListRequest"
+        }
+        response = await self.send_message(message_data)
+        params = []
+        for param in response["data"]["defaultParameters"]:
+            range = param["max"] - param["min"]
+            params.append([param["name"], (param["value"] - param["min"])/range , param["min"], param["max"], range])
+
+        return params
+
     async def set_custom_parameters(self):
         for data in self.custom_params:
 
@@ -176,8 +211,6 @@ class VTS_API:
             }
 
             await self.send_message(message_data)
-
-        await self.send_message(message_data)
 
     async def get_expressions(self):
         message_data = {
@@ -245,6 +278,18 @@ class VTS_API:
                     {"id": "AIEyeOpenLeft", "value": eye_lids[0]},
                     {"id": "AIEyeOpenRight", "value": eye_lids[1]}        
                 ]
+        
+        await self.set_parameters(params)
+
+    async def full_ai_movement(self, ai_params, params_config):  
+        params = []
+
+        print(ai_params)
+        for config_param in params_config:
+            for model_param, ai_param in zip(self.model_params, ai_params):
+                if model_param == config_param[0]:
+                    params.append({"id": config_param[0], "value": (ai_param * config_param[4]) + config_param[2] })
+                    break
         
         await self.set_parameters(params)
     
