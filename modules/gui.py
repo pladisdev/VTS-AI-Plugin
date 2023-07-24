@@ -8,6 +8,7 @@ class GUI:
         self.expressions = expressions
         self.expressions.insert(0, "None")
         self.value_change = True
+        self.new_expression = False
         self.exit = False
 
         self.expression = ""
@@ -43,13 +44,13 @@ class GUI:
                 slider_head_label = tk.Label(self.window, text="Head Movement:")
                 slider_head_label.pack()
                 self.selector1 = ttk.Combobox(self.window, values=["Still", "Random"], )
-                self.selector1.bind("<<ComboboxSelected>>", self.handle_head_selection)
+                self.selector1.bind("<<ComboboxSelected>>", self.__handle_head_selection)
                 self.selector1.pack()
             elif (i == 4):
                 selector1_label = tk.Label(self.window, text="Eye Movement:")
                 selector1_label.pack()
                 self.selector2 = ttk.Combobox(self.window, values=["Still", "Random"])
-                self.selector2.bind("<<ComboboxSelected>>", self.handle_eyes_selection)
+                self.selector2.bind("<<ComboboxSelected>>", self.__handle_eyes_selection)
                 self.selector2.pack()
 
             slider_frame = tk.Frame(self.window)
@@ -59,11 +60,11 @@ class GUI:
             slider_label.pack(side=tk.LEFT)
 
             slider_min = ttk.Scale(slider_frame, from_=0, to=1, length=100, orient=tk.HORIZONTAL, value=.5)
-            slider_min.bind("<ButtonRelease-1>", self.handle_slider_release)
+            slider_min.bind("<ButtonRelease-1>", self.__handle_slider_release)
             slider_min.pack(side=tk.LEFT)
             
             slider = ttk.Scale(slider_frame, from_=0, to=1, length=100, orient=tk.HORIZONTAL, value=.5)
-            slider.bind("<ButtonRelease-1>", self.handle_slider_release)
+            slider.bind("<ButtonRelease-1>", self.__handle_slider_release)
             slider.pack(side=tk.LEFT)
 
             self.sliders.append(slider_min)
@@ -75,22 +76,22 @@ class GUI:
         eye_lids_frame = tk.Frame(self.window)
         eye_lids_frame.pack()
 
-        blink_button = ttk.Button(eye_lids_frame, text="Blink", command=lambda: self.eye_lids_selection("Blink"))
+        blink_button = ttk.Button(eye_lids_frame, text="Blink", command=lambda: self.__eye_lids_selection("Blink"))
         blink_button.pack(side=tk.LEFT)
 
-        blink_button = ttk.Button(eye_lids_frame, text="Open", command=lambda: self.eye_lids_selection("Open"))
+        blink_button = ttk.Button(eye_lids_frame, text="Open", command=lambda: self.__eye_lids_selection("Open"))
         blink_button.pack(side=tk.LEFT)
 
-        blink_button = ttk.Button(eye_lids_frame, text="Close", command=lambda: self.eye_lids_selection("Close"))
+        blink_button = ttk.Button(eye_lids_frame, text="Close", command=lambda: self.__eye_lids_selection("Close"))
         blink_button.pack(side=tk.LEFT)
 
-        blink_button = ttk.Button(eye_lids_frame, text="Wink", command=lambda: self.eye_lids_selection("Wink"))
+        blink_button = ttk.Button(eye_lids_frame, text="Wink", command=lambda: self.__eye_lids_selection("Wink"))
         blink_button.pack(side=tk.LEFT)
      
         self.selector3_label = tk.Label(self.window, text="Select Expression:")
         self.selector3_label.pack()
         self.selector3 = ttk.Combobox(self.window, values=self.expressions)
-        self.selector3.bind("<<ComboboxSelected>>", self.handle_expression_selection)
+        self.selector3.bind("<<ComboboxSelected>>", self.__handle_expression_selection)
         self.selector3.pack()
 
         # Error box
@@ -99,12 +100,12 @@ class GUI:
         self.error_box = tk.Text(self.window, height=4, width=30)
         self.error_box.pack()
 
-        self.task = asyncio.create_task(self.update_gui())
+        self.task = asyncio.create_task(self.__update_gui())
 
-        exit_button = ttk.Button(self.window, text="Exit", command=self.handle_exit)
+        exit_button = ttk.Button(self.window, text="Exit", command=self.__handle_exit)
         exit_button.pack()
 
-    async def update_gui(self):
+    async def __update_gui(self):
         while self.window:
             self.window.update()
             await asyncio.sleep(0.01)  # Adjust the sleep duration as needed
@@ -113,30 +114,30 @@ class GUI:
         self.task.cancel()
         await asyncio.gather(*self.task, return_exceptions=True)
 
-    def handle_head_selection(self, event):
+    def __handle_head_selection(self, event):
         self.head_state = self.selector1.get()
         print("Selected value:", self.head_state)
         self.value_change = True
 
-    def handle_eyes_selection(self, event):
+    def __handle_eyes_selection(self, event):
         self.eyes_state = self.selector2.get()
         print("Selected value:", self.eyes_state)
         self.value_change = True
 
-    def eye_lids_selection(self, action):
+    def __eye_lids_selection(self, action):
         self.eye_lids = action
         self.value_change = True
 
-    def handle_expression_selection(self, event):
+    def __handle_expression_selection(self, event):
         self.expression = self.selector3.get()
         print("Selected value:", self.expression)
-        self.value_change = True
+        self.new_expression = True
     
-    def update_error(self, text):
+    def __update_error(self, text):
         self.error_box.delete("1.0", tk.END)
         self.error_box.insert(tk.END, text)
 
-    def handle_slider_release(self, event):
+    def __handle_slider_release(self, event):
         # Get the current values of the sliders
 
         self.head_target_speed_min = self.sliders[0].get()
@@ -157,10 +158,9 @@ class GUI:
 
         self.value_change = True
 
-    def handle_exit(self):
+    def __handle_exit(self):
         self.window.destroy()  # Close the main window and exit the application
         self.exit = True
 
     async def end(self):
         self.task.cancel()
-        

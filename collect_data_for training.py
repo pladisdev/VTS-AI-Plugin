@@ -1,10 +1,10 @@
 import pyaudio
-from vts import VTS_API
+from vtube_studio.vts import VTS_API
 import asyncio 
 import wave 
 import keyboard
 import time
-from vtubernet import DEFAULT_DURATION, DEFAULT_SAMPLE_RATE
+from ai.vtubernet import DEFAULT_DURATION, DEFAULT_SAMPLE_RATE
 
 URL = "ws://localhost:8001/"
 MIC_INPUT = "Enter Audio Input Here"

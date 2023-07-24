@@ -4,7 +4,7 @@ import torch.optim as optim
 from scipy import signal
 import scipy.io.wavfile as wav
 import numpy as np
-from vtubernet import VtuberNet
+from ai.vtubernet import VtuberNet
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 

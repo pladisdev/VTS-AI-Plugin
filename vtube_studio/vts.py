@@ -1,5 +1,4 @@
 import json
-import asyncio
 import base64
 import configparser
 
@@ -44,17 +43,29 @@ class VTS_API:
 
         self.expressions = []
 
-        with open("custom_params.json") as params_file:
+        with open("vtube_studio/custom_params.json") as params_file:
             self.custom_params = json.load(params_file)["custom_params"]
 
-    async def return_expressions(self):
-        names = []
-        if self.expressions != []:
-            names = [expression.name for expression in self.expressions]
-        return names
+    async def __aenter__(self):
+
+        self.ws = await websockets.connect(self.url)
+        name, developer, token = await self.__load_plugin_information()
+        await self.__authenticate(name, developer, token)
+        self.expressions = await self.__get_expressions()
+
+        for expression in self.expressions:
+            if expression.val:
+                await self.set_expression(expression.name, expression.toggle())
+
+        await self.__set_custom_parameters()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        if self.ws:
+            await self.ws.close()
 
     #Gets plugin information for authetifcation from config file
-    async def load_plugin_information(self):
+    async def __load_plugin_information(self):
 
         DEFUALT_NAME = "VTS-AI"
         DEFAULT_DEVELOPER = "Pladis"
@@ -78,7 +89,7 @@ class VTS_API:
                     config.set(PLUGIN_SETTINGS, PLUGIN_TOKEN, "")
                     config.write(config_file)
 
-                return self.load_plugin_information()
+                return self.__load_plugin_information()
         except Exception as e:
             raise e
 
@@ -104,7 +115,7 @@ class VTS_API:
             token = ""
 
         if token == "" or token.lower() == "nan" or token.lower() == "none":
-            token = await self.token_request(name, developer)
+            token = await self.__token_request(name, developer)
             config.set(PLUGIN_SETTINGS, PLUGIN_TOKEN, token)
             with open("config.ini", "w") as config_file:
                 config.write(config_file)
@@ -116,7 +127,7 @@ class VTS_API:
 
     #Main function to send message to vtube studio
     #TODO better error handling
-    async def send_message(self, message_data, error=False):
+    async def __send_message(self, message_data, error=False):
         message_json = json.dumps(message_data)
 
         try:
@@ -128,10 +139,10 @@ class VTS_API:
 
         return json.loads(response)
     
-    async def token_request(self, name, developer):
+    async def __token_request(self, name, developer):
         
         try:
-            with open("vts_ai_logo.png", "rb") as image_file:
+            with open("vtube_studio/vts_ai_logo.png", "rb") as image_file:
                 image_data = image_file.read()
 
             # Encode the image data to base64
@@ -158,7 +169,7 @@ class VTS_API:
         "data": data
         }
 
-        response = await self.send_message(token_request)
+        response = await self.__send_message(token_request)
 
         if "errorID" in response["data"]:
             print("Error getting token, did you deny access in Vtube Studio? Is it open?")
@@ -168,7 +179,7 @@ class VTS_API:
         return None
         
     #Required at least once per session
-    async def authenticate(self, name, developer, token):
+    async def __authenticate(self, name, developer, token):
 
         auth_request = {
             "apiName": "VTubeStudioPublicAPI",
@@ -182,24 +193,9 @@ class VTS_API:
             }
         }
 
-        await self.send_message(auth_request)
+        await self.__send_message(auth_request)
 
-    async def get_parameters(self):
-        message_data = {
-            "apiName": "VTubeStudioPublicAPI",
-            "apiVersion": "1.0",
-            "requestID": "SomeID",
-            "messageType": "InputParameterListRequest"
-        }
-        response = await self.send_message(message_data)
-        params = []
-        for param in response["data"]["defaultParameters"]:
-            range = param["max"] - param["min"]
-            params.append([param["name"], (param["value"] - param["min"])/range , param["min"], param["max"], range])
-
-        return params
-
-    async def set_custom_parameters(self):
+    async def __set_custom_parameters(self):
         for data in self.custom_params:
 
             message_data = {
@@ -210,9 +206,9 @@ class VTS_API:
             "data": data
             }
 
-            await self.send_message(message_data)
+            await self.__send_message(message_data)
 
-    async def get_expressions(self):
+    async def __get_expressions(self):
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
@@ -223,7 +219,7 @@ class VTS_API:
             }
         }
 
-        response = await self.send_message(message_data)
+        response = await self.__send_message(message_data)
         
         expressions = []
         for expression_found in response["data"]["expressions"]:
@@ -232,7 +228,7 @@ class VTS_API:
 
         return expressions
 
-    async def set_expression_vts(self, expression, val):
+    async def __set_expression(self, expression, val):
 
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
@@ -246,7 +242,7 @@ class VTS_API:
         }
 
         try:
-            response = await self.send_message(message_data)
+            response = await self.__send_message(message_data)
 
             if not "data" in response:
                 raise "Error in response"
@@ -254,7 +250,7 @@ class VTS_API:
             print(f"Error setting expression: {e}")
             raise e
         
-    async def set_parameters(self, params):
+    async def __set_parameters(self, params):
         message_data = {
             "apiName": "VTubeStudioPublicAPI",
             "apiVersion": "1.0",
@@ -266,8 +262,43 @@ class VTS_API:
             }
         }
 
-        return await self.send_message(message_data)
+        return await self.__send_message(message_data)
         
+    async def get_parameters(self):
+        message_data = {
+            "apiName": "VTubeStudioPublicAPI",
+            "apiVersion": "1.0",
+            "requestID": "SomeID",
+            "messageType": "InputParameterListRequest"
+        }
+        response = await self.__send_message(message_data)
+        params = []
+        for param in response["data"]["defaultParameters"]:
+            range = param["max"] - param["min"]
+            params.append([param["name"], (param["value"] - param["min"])/range , param["min"], param["max"], range])
+
+        return params
+    
+    async def return_expressions(self):
+        names = []
+        if self.expressions != []:
+            names = [expression.name for expression in self.expressions]
+        return names
+
+    async def toggle_expression(self, name):
+
+        expression = [expression for expression in self.expressions if expression.name == name]
+
+        if expression != []:
+            await self.__set_expression(expression[0].name, expression[0].toggle())
+
+    async def set_expression(self, name, value):
+        expression = [expression for expression in self.expressions if expression.name == name]
+
+        if expression != []:
+            if value != expression[0].val:
+                await self.__set_expression(expression[0].name, expression[0].toggle())
+    
     async def ai_movement(self, head, eye, eye_lids):
         params =  [
                     {"id": "AIFaceAngleX", "value": head[0]},
@@ -279,9 +310,9 @@ class VTS_API:
                     {"id": "AIEyeOpenRight", "value": eye_lids[1]}        
                 ]
         
-        await self.set_parameters(params)
+        await self.__set_parameters(params)
 
-    async def full_ai_movement(self, ai_params, params_config):  
+    async def nn_movement(self, ai_params, params_config):  
         params = []
 
         print(ai_params)
@@ -291,39 +322,4 @@ class VTS_API:
                     params.append({"id": config_param[0], "value": (ai_param * config_param[4]) + config_param[2] })
                     break
         
-        await self.set_parameters(params)
-    
-    async def __aenter__(self):
-
-        self.ws = await websockets.connect(self.url)
-        name, developer, token = await self.load_plugin_information()
-        await self.authenticate(name, developer, token)
-        self.expressions = await self.get_expressions()
-
-        for expression in self.expressions:
-            if expression.val:
-                await self.set_expression(expression.name, expression.toggle())
-
-        await self.set_custom_parameters()
-        return self
-        
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.ws:
-            await self.ws.close()
-
-    async def toggle_expression(self, name):
-
-        expression = [expression for expression in self.expressions if expression.name == name]
-
-        if expression != []:
-            await self.set_expression_vts(expression[0].name, expression[0].toggle())
-
-    async def set_expression(self, name, value):
-        expression = [expression for expression in self.expressions if expression.name == name]
-
-        if expression != []:
-            if value != expression[0].val:
-                await self.set_expression_vts(expression[0].name, expression[0].toggle())
-
-    async def vtuber_movement(self, head, eyes, eye_lids):          
-            await self.set_parameters(head, eyes, eye_lids)
+        await self.__set_parameters(params)

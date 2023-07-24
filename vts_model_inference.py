@@ -1,11 +1,11 @@
 import torch
 import pyaudio
-from vts import VTS_API
+from vtube_studio.vts import VTS_API
 import time
 import asyncio
 import keyboard
 import numpy as np
-from vtubernet import VtuberNet
+from ai.vtubernet import VtuberNet
 
 URL = "ws://localhost:8001/"
 MIC_INPUT = "Enter Audio Input Here"
@@ -55,7 +55,7 @@ async def main():
             with torch.no_grad():
                 output = model(test_data)
                 
-            await vtube_studio.full_ai_movement(output.flatten().tolist(), params_config)
+            await vtube_studio.nn_movement(output.flatten().tolist(), params_config)
 
             if keyboard.is_pressed('del'):
                 break
