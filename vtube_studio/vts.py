@@ -221,10 +221,16 @@ class VTS_API:
 
         response = await self.__send_message(message_data)
         
-        expressions = []
-        for expression_found in response["data"]["expressions"]:
-            expression = Expression(expression_found["name"], expression_found["active"])
-            expressions.append(expression)
+        if "errorID" in response["data"]:
+            print(response["data"]["errorID"])
+        try:
+            expressions = []
+            for expression_found in response["data"]["expressions"]:
+                expression = Expression(expression_found["name"], expression_found["active"])
+                expressions.append(expression)
+        except Exception as e:
+            print(e)
+            print("Error in response: " + str(response))
 
         return expressions
 
