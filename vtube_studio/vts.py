@@ -4,6 +4,8 @@ import configparser
 
 import websockets
 
+import logging
+
 #For storing expression for your model, can become more complex over times
 class Expression:
     def __init__(self, name, val=False):
@@ -43,6 +45,21 @@ class VTS_API:
 
         self.expressions = []
 
+        # Create a logger instance
+        self.logger = logging.getLogger(__name__)
+        self.logger.setLevel(logging.DEBUG)
+
+        # Create a console handler and set the log level to be printed to the console
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+
+        # Create a formatter for the log messages
+        formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        console_handler.setFormatter(formatter)
+
+        # Add the console handler to the logger
+        self.logger.addHandler(console_handler)
+
         with open("vtube_studio/custom_params.json") as params_file:
             self.custom_params = json.load(params_file)["custom_params"]
 
@@ -81,6 +98,7 @@ class VTS_API:
             files_read = config.read("config.ini")
 
             if not files_read:
+                self.logger.info("Creating config file")
                 with open("config.ini", "w") as config_file:
                     
                     config.add_section(PLUGIN_SETTINGS)
@@ -115,6 +133,7 @@ class VTS_API:
             token = ""
 
         if token == "" or token.lower() == "nan" or token.lower() == "none":
+            self.logger.info("No token found, Allow the plugin in Vtube Studio")
             token = await self.__token_request(name, developer)
             config.set(PLUGIN_SETTINGS, PLUGIN_TOKEN, token)
             with open("config.ini", "w") as config_file:
@@ -134,7 +153,7 @@ class VTS_API:
             await self.ws.send(message_json)
             response = await self.ws.recv()
         except Exception as e:          
-            print(f"Error sending message to Vtube Studio: {e}")
+            self.logger.error(str(e))
             raise e
 
         return json.loads(response)
@@ -155,7 +174,6 @@ class VTS_API:
             }
 
         except Exception as e:
-            print(e)
             data = {
             "pluginName": name,
             "pluginDeveloper": developer
@@ -172,8 +190,10 @@ class VTS_API:
         response = await self.__send_message(token_request)
 
         if "errorID" in response["data"]:
-            print("Error getting token, did you deny access in Vtube Studio? Is it open?")
+            self.logger.error(response["message"])
+            self.logger.error("Did not recieve token, did you deny access in Vtube Studio? Is it open?")
         elif "authenticationToken" in response["data"]:
+            self.logger.info("Authentification Successful")
             return response["data"]["authenticationToken"]
 
         return None
@@ -220,17 +240,17 @@ class VTS_API:
         }
 
         response = await self.__send_message(message_data)
-        
+        expressions = []
         if "errorID" in response["data"]:
-            print(response["data"]["errorID"])
-        try:
-            expressions = []
-            for expression_found in response["data"]["expressions"]:
-                expression = Expression(expression_found["name"], expression_found["active"])
-                expressions.append(expression)
-        except Exception as e:
-            print(e)
-            print("Error in response: " + str(response))
+            self.logger.error(response["data"]["message"])
+        else:
+            try:   
+                for expression_found in response["data"]["expressions"]:
+                    expression = Expression(expression_found["name"], expression_found["active"])
+                    expressions.append(expression)
+            except Exception as e:
+                self.logger.error(str(e))
+                self.logger.error("Response: " + str(response))
 
         return expressions
 
@@ -250,10 +270,11 @@ class VTS_API:
         try:
             response = await self.__send_message(message_data)
 
-            if not "data" in response:
-                raise "Error in response"
+            if "errorID" in response["data"]:
+                self.logger.error(response["data"]["message"])
+                
         except Exception as e:
-            print(f"Error setting expression: {e}")
+            self.logger.error(str(e))
             raise e
         
     async def __set_parameters(self, params):
@@ -320,8 +341,6 @@ class VTS_API:
 
     async def nn_movement(self, ai_params, params_config):  
         params = []
-
-        print(ai_params)
         for config_param in params_config:
             for model_param, ai_param in zip(self.model_params, ai_params):
                 if model_param == config_param[0]:
