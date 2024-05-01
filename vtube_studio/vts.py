@@ -1,11 +1,4 @@
-import json
-import base64
-import configparser
-
-import websockets
-
-import logging
-
+import json, base64, configparser, websockets, logging, time
 #For storing expression for your model, can become more complex over times
 class Expression:
     def __init__(self, name, val=False):
@@ -64,8 +57,16 @@ class VTS_API:
             self.custom_params = json.load(params_file)["custom_params"]
 
     async def __aenter__(self):
+        self.ws = None
+        while self.ws is None:
+            try:
+                self.ws = await websockets.connect(self.url)
+            except:
+                print("Unable to connect to VTS, trying again in 3 seconds")
+                time.sleep(3)
+                pass
+        print("VTS found")
 
-        self.ws = await websockets.connect(self.url)
         name, developer, token = await self.__load_plugin_information()
         await self.__authenticate(name, developer, token)
         self.expressions = await self.__get_expressions()

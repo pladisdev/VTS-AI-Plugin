@@ -34,7 +34,7 @@ class GUI:
         self.eye_lids = "Blink"
 
         self.window = tk.Tk()
-        self.window.title("GUI Example")
+        self.window.title("VTS AI Plugin")
 
         self.sliders = []
         slider_labels = ["Next Pos (0->5:0->5)", "     X (-30->0:0->30)", "     Y (-30->0:0->30)", "     Z (-90->0:0->90)", "Next Pos (0->5:0->5)", "     X (-1->0:0->1)", "     Y (-1->0:0->1)"]
